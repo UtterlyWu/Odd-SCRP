@@ -163,7 +163,7 @@ class Spider:
         for i in range(delta.days + 1):
             self.date = cur_date
             toScrape = self.crawl()
-            for i2 in range(10):
+            for i2 in range(len(toScrape)):
                 data = self.scrape(toScrape[i2])
                 print('')
                 strDate = '{}{:02d}{:02d}'.format(self.date.year, self.date.month, self.date.day)
