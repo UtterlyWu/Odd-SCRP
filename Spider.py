@@ -79,7 +79,6 @@ class Spider:
             'sec-fetch-site': 'same-origin',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36',
             'x-requested-with': 'XMLHttpRequest',
-            
         }
 
         response = requests.get(
@@ -114,7 +113,6 @@ class Spider:
             WebDriverWait(self.driver, secs).until(EC.presence_of_element_located((By.XPATH, xpath)))
             return True
         except:
-            print('')
             print("Something went wrong")
             return False
 
@@ -185,15 +183,16 @@ class Spider:
             self.date = cur_date
             toScrape = self.crawl()
 
-            for i2 in range(len(toScrape)):
+            for i2 in range(10):
                 data = self.scrape(toScrape[i2])
                 link = toScrape[i2]
                 str_date = '{}{:02d}{:02d}'.format(self.date.year, self.date.month, self.date.day)
                 market = self.market
-                for k, v in data.items():
-                    bookmaker = k
-                    odds = v
-                    db_manager.add_to_table(link, str_date, market, bookmaker, odds)
+                if (data != None):
+                    for k, v in data.items():
+                        bookmaker = k
+                        odds = v
+                        db_manager.add_to_table(link, str_date, market, bookmaker, odds)
             
             cur_date += timedelta(days=1)
         
