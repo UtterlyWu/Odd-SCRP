@@ -30,7 +30,12 @@ class Spider:
         driver (webdriver): Chrome driver controlled by Selenium.
         soup (BeautifulSoup): Last HTML page worked on represented by a BeautifulSoup object.
     """
-
+    markets = {"1X2" : "1X2",
+               "Home/Away" : "home-away",
+               "Both Teams to Score" : "bts",
+               "Double Chance" : "double",
+               "Draw No Bet" : "dnb",
+               "Odd or Even" : "odd-even"}
 
     def __init__(self, sport: str, market: str = '1X2'):
         """
@@ -91,30 +96,9 @@ class Spider:
 
         urls = []
         for i in range(len(gamePageObjs)):
-            urls.append('https://www.oddsportal.com' + gamePageObjs[i]["url"] + f'#{self.market}')
+            urls.append('https://www.oddsportal.com' + gamePageObjs[i]["url"])
 
         return urls
-    
-
-    def load_page(self, secs: int, url: str, xpath: str) -> bool:
-        """
-        Allows page to load until desired elements to appear
-
-        Args:
-            secs: Seconds to wait before timeout.
-            url: URL of page to load.
-            xpath: Full xpath of an HTML element which needs to be loaded.
-        
-        Returns:
-            True if the element at the xpath is found. False if timeout.
-        """
-        try:
-            self.driver.get(url)
-            WebDriverWait(self.driver, secs).until(EC.presence_of_element_located((By.XPATH, xpath)))
-            return True
-        except:
-            print("Something went wrong")
-            return False
 
     
     def scrape(self, url: str) -> Dict[str, List[float]]:
@@ -125,7 +109,7 @@ class Spider:
         https://www.oddsportal.com/football/czech-republic/division-e/brno-bzenec-0x81ByeF/ 
         
         Should work for any sport and any market except Over/Under, Asian Handicap, and 
-        European Handicap.
+        European Handicap, Correct Score, and Halftime/Fulltime. Scrapes FULL TIME bets.
 
         Args:
             url: URL of the page to scrape.
@@ -133,8 +117,22 @@ class Spider:
         Returns:
             A dictionary with keys corresponding to bookmakers and values corresponding to odds.
         """
-        if (self.load_page(10, url, '/html/body/div[1]/div/div[1]/div/main/div[2]/div[4]/div[1]/div/div[2]/div[2]/div')):
+        try:
+            #Go to market if it exists
+            self.driver.get(url + f'#{Spider.markets[self.market]}')
+
+            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.odds-item')))
+            self.soup = BeautifulSoup(self.driver.page_source, 'lxml')
+            markets_set = set()
+            market_elemts = self.soup.select('.odds-item')
+            for elemt in market_elemts:
+                markets_set.add(elemt.text)
+            
+            if (self.market not in markets_set):
+                return None
+
             #Retrieve data from page
+            WebDriverWait(self.driver, 10).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'div[data-v-44b45d80]')))
             self.soup = BeautifulSoup(self.driver.page_source, 'lxml')
             all_book_elemts = self.soup.find_all('p', class_="height-content max-mm:hidden pl-4")
             all_odd_elemts = self.soup.select('div[data-v-cb2b6512] > p')
@@ -156,6 +154,9 @@ class Spider:
 
             return books_odds_dict
         
+        except:
+            pass
+
         return None
     
 
@@ -193,8 +194,11 @@ class Spider:
                         bookmaker = k
                         odds = v
                         db_manager.add_to_table(link, str_date, market, bookmaker, odds)
+                else:
+                    db_manager.add_to_table(link, str_date, market, 'N/A', [])
             
             cur_date += timedelta(days=1)
         
         #Commit changes to database
         db_manager.commit()
+
