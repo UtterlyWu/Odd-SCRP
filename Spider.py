@@ -36,6 +36,29 @@ class Spider:
                "Double Chance" : "double",
                "Draw No Bet" : "dnb",
                "Odd or Even" : "odd-even"}
+    
+    sportsIDs = {"football" : "1",
+                 "basketball" : "3",
+                 "baseball" : "6",
+                 "hockey" : "4",
+                 "tennis" : "2",
+                 "american-football" : "5",
+                 "aussie-rules" : "18",
+                 "badminton" : "21",
+                 "beach-volleyball" : "17",
+                 "boxing" : "16",
+                 "cricket" : "13",
+                 "darts" : "14",
+                 "esports" : "36",
+                 "futsal" : "11",
+                 "mma" : "28",
+                 "pesapallo" : "30",
+                 "rugby-league" : "19",
+                 "rugby-union" : "8",
+                 "table-tennis" : "25",
+                 "volleyball" : "12",
+                 "water-polo" : "22"}
+
 
     def __init__(self, sport: str, market: str = '1X2'):
         """
@@ -45,7 +68,7 @@ class Spider:
           sport: The sport the spider should start crawling at. Options to add later ('football' for now).
           market: The market the spider should target when retrieving data. Options to add later ('1X2' for now).
         """
-        self.date = datetime.strptime('20230516', '%Y%m%d')
+        self.date = datetime.strptime('20230520', '%Y%m%d')
         self.sport = sport
         self.market = market
         #selenium setup
@@ -76,23 +99,21 @@ class Spider:
             'accept-language': 'en-US,en;q=0.9',
             'content-type': 'application/json',
             'referer': f'https://www.oddsportal.com/matches/{self.sport}/{strDate}/',
-            'sec-ch-ua': '"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'same-origin',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36',
             'x-requested-with': 'XMLHttpRequest',
         }
 
         response = requests.get(
-            f'https://www.oddsportal.com/ajax-nextgames/1/-4/1/{strDate}/yje83.dat',
+            f'https://www.oddsportal.com/ajax-nextgames/{Spider.sportsIDs[self.sport]}/-4/1/{strDate}/yje83.dat',
             params={'_': '/',},
             headers=headers,
         )
 
-        gamePageObjs = response.json()["d"]["rows"]
+        #If there's no game on a specific day, return none
+        try:
+            gamePageObjs = response.json()["d"]["rows"]
+        except:
+            return None
 
         urls = []
         for i in range(len(gamePageObjs)):
@@ -155,9 +176,8 @@ class Spider:
             return books_odds_dict
         
         except:
-            pass
-
-        return None
+            # print("excepted")
+            return None
     
 
     def hunt(self, start_date: datetime, end_date: datetime, db_manager: DatabaseManager):
@@ -184,18 +204,20 @@ class Spider:
             self.date = cur_date
             toScrape = self.crawl()
 
-            for i2 in range(10):
-                data = self.scrape(toScrape[i2])
-                link = toScrape[i2]
-                str_date = '{}{:02d}{:02d}'.format(self.date.year, self.date.month, self.date.day)
-                market = self.market
-                if (data != None):
-                    for k, v in data.items():
-                        bookmaker = k
-                        odds = v
-                        db_manager.add_to_table(link, str_date, market, bookmaker, odds)
-                else:
-                    db_manager.add_to_table(link, str_date, market, 'N/A', [])
+            if (toScrape != None):
+                for i2 in range(5):
+                    # print("ran")
+                    data = self.scrape(toScrape[i2])
+                    link = toScrape[i2]
+                    str_date = '{}{:02d}{:02d}'.format(self.date.year, self.date.month, self.date.day)
+                    market = self.market
+                    if (data != None):
+                        for k, v in data.items():
+                            bookmaker = k
+                            odds = v
+                            db_manager.add_to_table(link, str_date, market, bookmaker, odds)
+                    else:
+                        db_manager.add_to_table(link, str_date, market, 'N/A', [])
             
             cur_date += timedelta(days=1)
         

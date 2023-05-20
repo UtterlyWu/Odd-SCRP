@@ -4,7 +4,7 @@ from datetime import datetime
 
 if __name__ == '__main__':
     #Tests
-    spider = Spider('football', market='1X2')
+    spider = Spider('water-polo', market='1X2')
     db = DatabaseManager('odds.db', False)
 
     #Test crawling
